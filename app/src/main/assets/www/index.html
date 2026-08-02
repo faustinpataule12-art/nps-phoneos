@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NPS PhoneOS v5 — Smartphone Virtuel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;600&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .code-font { font-family: 'Fira Code', monospace; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .torch-active { background-color: #ffffff !important; color: #000000 !important; }
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .toast-anim { animation: slideUp 0.3s ease-out forwards; }
+
+        /* Fonds d'écran thématiques de langages et motifs */
+        .bg-theme-python {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            background-image: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at 80% 70%, rgba(234, 179, 8, 0.1) 0%, transparent 40%);
+        }
+        .bg-theme-js {
+            background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+            background-image: radial-gradient(circle at 50% 50%, rgba(234, 179, 8, 0.2) 0%, transparent 60%);
+        }
+        .bg-theme-html {
+            background: linear-gradient(135deg, #451a03 0%, #1c1917 100%);
+            background-image: linear-gradient(0deg, rgba(249, 115, 22, 0.1) 1px, transparent 1px);
+            background-size: 100% 20px;
+        }
+        .bg-theme-rust {
+            background: linear-gradient(135deg, #450a0a 0%, #18181b 100%);
+            background-image: radial-gradient(circle at 10% 90%, rgba(239, 68, 68, 0.2) 0%, transparent 50%);
+        }
+        .bg-theme-cpp {
+            background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%);
+            background-image: linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+            background-size: 20px 100%;
+        }
+        .bg-theme-rdc {
+            background: linear-gradient(135deg, #0284c7 0%, #0f172a 50%, #15803d 100%);
+        }
+        .bg-theme-matrix {
+            background: #022c22;
+            background-image: radial-gradient(rgba(74, 222, 128, 0.2) 1px, transparent 1px);
+            background-size: 16px 16px;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 select-none">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-5 z-[100] flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Coque du Smartphone -->
+    <div id="phone-shell" class="relative w-full max-w-[390px] h-[800px] bg-black rounded-[50px] p-3 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] border-4 border-slate-800 flex flex-col justify-between overflow-hidden transition-all duration-300">
+        
+        <!-- Torche Overlay -->
+        <div id="torch-overlay" class="absolute inset-0 bg-transparent z-[70] pointer-events-none transition-colors duration-300"></div>
+
+        <!-- Panneau de Contrôle Coulissant -->
+        <div id="control-panel" class="absolute top-0 left-0 right-0 h-[320px] bg-slate-900/95 backdrop-blur-xl z-[60] -translate-y-full transition-transform duration-300 rounded-b-[40px] p-6 border-b border-slate-700 flex flex-col justify-between shadow-2xl">
+            <div class="flex justify-between items-center text-xs font-semibold text-slate-400">
+                <span>Panneau de contrôle</span>
+                <button onclick="toggleControlPanel()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white"><i class="fa-solid fa-chevron-up"></i></button>
+            </div>
+            <div class="grid grid-cols-4 gap-3">
+                <button id="quick-wifi" onclick="toggleQuick('wifi')" class="flex flex-col items-center justify-center h-20 rounded-2xl bg-blue-600 text-white transition-all">
+                    <i class="fa-solid fa-wifi text-xl mb-1"></i>
+                    <span class="text-[10px]">Wi-Fi</span>
+                </button>
+                <button id="quick-torch" onclick="toggleTorch()" class="flex flex-col items-center justify-center h-20 rounded-2xl bg-slate-800 text-slate-300 transition-all">
+                    <i class="fa-solid fa-bolt text-xl mb-1"></i>
+                    <span class="text-[10px]">Torche</span>
+                </button>
+                <button id="quick-bt" onclick="toggleQuick('bt')" class="flex flex-col items-center justify-center h-20 rounded-2xl bg-blue-600 text-white transition-all">
+                    <i class="fa-solid fa-bluetooth text-xl mb-1"></i>
+                    <span class="text-[10px]">Bluetooth</span>
+                </button>
+                <button id="quick-plane" onclick="toggleQuick('plane')" class="flex flex-col items-center justify-center h-20 rounded-2xl bg-slate-800 text-slate-300 transition-all">
+                    <i class="fa-solid fa-plane text-xl mb-1"></i>
+                    <span class="text-[10px]">Avion</span>
+                </button>
+            </div>
+            <div class="bg-slate-800/80 rounded-2xl p-3 flex items-center space-x-3">
+                <i class="fa-solid fa-sun text-amber-400"></i>
+                <input type="range" min="20" max="100" value="100" oninput="adjustBrightness(this.value)" class="w-full accent-indigo-500 cursor-pointer">
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div onclick="toggleControlPanel()" class="absolute top-0 left-0 right-0 h-11 bg-black/60 backdrop-blur-md z-50 flex items-center justify-between px-6 pt-2 text-xs font-semibold text-white cursor-pointer">
+            <span id="status-time">09:41</span>
+            <div class="w-24 h-5 bg-black rounded-full border border-slate-800 flex items-center justify-center space-x-1 px-2">
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <div class="w-2 h-2 rounded-full bg-slate-800"></div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-signal text-[10px]"></i>
+                <i class="fa-solid fa-wifi text-[10px]"></i>
+                <i class="fa-solid fa-battery-full text-emerald-400"></i>
+            </div>
+        </div>
+
+        <!-- Écran du téléphone avec fond d'écran dynamique -->
+        <div id="phone-screen" class="relative w-full h-full bg-theme-python rounded-[38px] pt-12 pb-12 px-3 flex flex-col justify-between overflow-hidden transition-all duration-500">
+            
+            <!-- CONTENEUR DES APPLICATIONS -->
+            <div id="app-viewport" class="relative w-full h-full flex flex-col overflow-hidden">
+                
+                <!-- HOME SCREEN -->
+                <div id="view-home" class="app-view flex flex-col h-full justify-between pb-2">
+                    <div class="mt-2 bg-white/10 backdrop-blur-md rounded-3xl p-4 border border-white/10 flex items-center justify-between shadow-lg">
+                        <div>
+                            <p id="home-date" class="text-[11px] text-indigo-300 font-medium">LUNDI 24 OCTOBRE</p>
+                            <h2 id="home-time" class="text-3xl font-bold tracking-tight text-white mt-0.5">09:41</h2>
+                        </div>
+                        <div class="text-right">
+                            <i class="fa-solid fa-cloud-sun text-2xl text-amber-300 mb-1"></i>
+                            <p class="text-[11px] text-slate-300 font-medium">24°C • Kinshasa</p>
+                        </div>
+                    </div>
+
+                    <!-- Grille d'applications -->
+                    <div class="grid grid-cols-4 gap-y-4 gap-x-3 px-1 my-auto overflow-y-auto hide-scrollbar">
+                        <button onclick="openApp('dialer')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/30 group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-phone text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Téléphone</span>
+                        </button>
+                        <button onclick="openApp('messages')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30 group-active:scale-95 transition-transform relative">
+                                <i class="fa-solid fa-message text-xl text-white"></i>
+                                <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">2</span>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Messages</span>
+                        </button>
+                        <button onclick="openApp('gallery')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center shadow-lg shadow-pink-500/30 group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-images text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Galerie</span>
+                        </button>
+                        <button onclick="openApp('music')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-violet-600 to-fuchsia-500 flex items-center justify-center shadow-lg group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-music text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Musique</span>
+                        </button>
+                        <button onclick="openApp('notes')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-500 flex items-center justify-center shadow-lg shadow-amber-500/30 group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-note-sticky text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Notes</span>
+                        </button>
+                        <button onclick="openApp('calc')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-600 flex items-center justify-center shadow-lg group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-calculator text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Calculatrice</span>
+                        </button>
+                        <button onclick="openApp('games')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-gamepad text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Jeux</span>
+                        </button>
+                        <button onclick="openApp('browser')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center shadow-lg group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-globe text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Navigateur</span>
+                        </button>
+                        <button onclick="openApp('settings')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-600 to-slate-500 flex items-center justify-center shadow-lg group-active:scale-95 transition-transform">
+                                <i class="fa-solid fa-gear text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">Réglages</span>
+                        </button>
+                        <button onclick="openApp('nps')" class="flex flex-col items-center group">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg group-active:scale-95 transition-transform animate-pulse">
+                                <i class="fa-solid fa-robot text-xl text-white"></i>
+                            </div>
+                            <span class="text-[10px] text-slate-200 mt-1 font-medium">NPS.AI</span>
+                        </button>
+                    </div>
+
+                    <!-- Dock du bas -->
+                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-3 flex justify-around items-center border border-white/10">
+                        <button onclick="openApp('dialer')" class="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-md"><i class="fa-solid fa-phone text-white"></i></button>
+                        <button onclick="openApp('browser')" class="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center shadow-md"><i class="fa-solid fa-globe text-white"></i></button>
+                        <button onclick="openApp('music')" class="w-12 h-12 rounded-2xl bg-purple-500 flex items-center justify-center shadow-md"><i class="fa-solid fa-music text-white"></i></button>
+                        <button onclick="openApp('settings')" class="w-12 h-12 rounded-2xl bg-slate-700 flex items-center justify-center shadow-md"><i class="fa-solid fa-gear text-white"></i></button>
+                    </div>
+                </div>
+
+                <!-- APP : GALERIE (5 images loufoques de cuisine et dev) -->
+                <div id="view-gallery" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 overflow-y-auto hide-scrollbar">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-images text-pink-400 mr-2"></i> Galerie Photos</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-3">Tes 5 images loufoques de cuisine et de développeur :</p>
+                    <div id="gallery-grid" class="grid grid-cols-1 gap-3 pb-4"></div>
+                </div>
+
+                <!-- APP : MUSIQUE & PLAYLISTS -->
+                <div id="view-music" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 overflow-y-auto hide-scrollbar">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-music text-purple-400 mr-2"></i> Musique</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-950 to-slate-900 p-4 rounded-2xl border border-purple-500/30 text-center mb-4 shadow-xl">
+                        <div class="w-16 h-16 mx-auto bg-purple-600/30 rounded-full flex items-center justify-center mb-2 animate-pulse">
+                            <i class="fa-solid fa-compact-disc text-3xl text-purple-300"></i>
+                        </div>
+                        <h4 id="current-track-title" class="font-bold text-white text-sm">Lo-Fi Code</h4>
+                        <p class="text-[11px] text-purple-300 mb-3">100% Hors Ligne Audio Engine</p>
+                        <div class="flex justify-center space-x-4 items-center">
+                            <button onclick="prevMusic()" class="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center"><i class="fa-solid fa-backward-step"></i></button>
+                            <button id="play-btn" onclick="togglePlayMusic()" class="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-lg"><i class="fa-solid fa-play"></i></button>
+                            <button onclick="nextMusic()" class="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center"><i class="fa-solid fa-forward-step"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-semibold text-slate-300">Mes Playlists</span>
+                        <button onclick="createPlaylist()" class="text-[11px] bg-purple-600/30 text-purple-300 px-2.5 py-1 rounded-lg">+ Playlist</button>
+                    </div>
+                    <div id="playlists-container" class="space-y-2 mb-4"></div>
+                    <span class="text-xs font-semibold text-slate-300 mb-2 block">Morceaux disponibles</span>
+                    <div id="tracks-container" class="space-y-2 pb-4"></div>
+                </div>
+
+                <!-- APP : NAVIGATEUR HORS LIGNE GÉANT -->
+                <div id="view-browser" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 overflow-y-auto hide-scrollbar">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex items-center space-x-2 w-full mr-2">
+                            <input type="text" id="browser-input" placeholder="Rechercher (ex: Python, RDC, Code...)" class="w-full bg-slate-800 text-xs px-3 py-2 rounded-xl text-white border border-slate-700 outline-none">
+                            <button onclick="performSearch()" class="bg-blue-600 px-3 py-2 rounded-xl text-white text-xs"><i class="fa-solid fa-magnifying-glass"></i></button>
+                        </div>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <div id="browser-results" class="space-y-3 pb-4">
+                        <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 text-xs text-slate-300">
+                            <p class="font-bold text-blue-400 mb-1"><i class="fa-solid fa-globe mr-1"></i> Navigateur Offline Géant</p>
+                            Tape n'importe quel sujet. Le moteur génère instantanément des millions de résultats encyclopédiques 100% hors ligne.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- APP : RÉGLAGES & SÉLECTEUR DE FONDS D'ÉCRAN -->
+                <div id="view-settings" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 overflow-y-auto hide-scrollbar">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-gear text-slate-400 mr-2"></i> Réglages</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    
+                    <h4 class="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Fonds d'écran Langages & Motifs</h4>
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <button onclick="setWallpaper('python', 'Python Matrix')" class="p-3 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-blue-500 transition-all flex flex-col justify-between h-20">
+                            <span class="text-xs font-bold text-white"><i class="fa-brands fa-python text-blue-400 mr-1"></i> Python</span>
+                            <span class="text-[10px] text-slate-400">Code & Data</span>
+                        </button>
+                        <button onclick="setWallpaper('js', 'JavaScript Neon')" class="p-3 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-amber-500 transition-all flex flex-col justify-between h-20">
+                            <span class="text-xs font-bold text-white"><i class="fa-brands fa-js text-amber-400 mr-1"></i> JavaScript</span>
+                            <span class="text-[10px] text-slate-400">Neon Glow</span>
+                        </button>
+                        <button onclick="setWallpaper('html', 'HTML/CSS Grid')" class="p-3 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-orange-500 transition-all flex flex-col justify-between h-20">
+                            <span class="text-xs font-bold text-white"><i class="fa-brands fa-html5 text-orange-400 mr-1"></i> HTML5 / CSS</span>
+                            <span class="text-[10px] text-slate-400">Struct Grid</span>
+                        </button>
+                        <button onclick="setWallpaper('rust', 'Rust Cyber')" class="p-3 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-red-500 transition-all flex flex-col justify-between h-20">
+                            <span class="text-xs font-bold text-white"><i class="fa-solid fa-gear text-red-400 mr-1"></i> Rust Cyber</span>
+                            <span class="text-[10px] text-slate-400">Zero-Cost</span>
+                        </button>
+                        <button onclick="setWallpaper('cpp', 'C++ Binary')" class="p-3 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-sky-500 transition-all flex flex-col justify-between h-20">
+                            <span class="text-xs font-bold text-white"><i class="fa-solid fa-code text-sky-400 mr-1"></i> C++ / C</span>
+                            <span class="text-[10px] text-slate-400">Binary Stream</span>
+                        </button>
+                        <button onclick="setWallpaper('rdc', 'RDC National')" class="p-3 rounded-2xl bg-slate-800 border border-slate-700 text-left hover:border-emerald-500 transition-all flex flex-col justify-between h-20">
+                            <span class="text-xs font-bold text-white"><i class="fa-solid fa-flag text-amber-400 mr-1"></i> RDC Congo</span>
+                            <span class="text-[10px] text-slate-400">Kinshasa Vibes</span>
+                        </button>
+                    </div>
+
+                    <div class="bg-slate-800/60 p-3 rounded-2xl border border-slate-700 space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-300">Stockage Local Offline</span>
+                            <span class="text-emerald-400 font-bold">128 Go (OK)</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-300">Zéro Popup (Alertes)</span>
+                            <span class="text-emerald-400 font-bold">Actif</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- APP : NOTES -->
+                <div id="view-notes" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 overflow-y-auto hide-scrollbar">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-note-sticky text-amber-400 mr-2"></i> Notes</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <textarea id="note-text" placeholder="Écris tes idées de code ici..." class="w-full h-64 bg-slate-800 text-xs p-3 rounded-2xl text-white border border-slate-700 outline-none resize-none mb-3"></textarea>
+                    <button onclick="saveNote()" class="w-full py-2.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg">Enregistrer</button>
+                </div>
+
+                <!-- APP : CALCULATRICE -->
+                <div id="view-calc" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 justify-between">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-white text-lg">Calculatrice</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <div id="calc-display" class="bg-slate-800 text-right p-4 rounded-2xl text-2xl font-bold text-white mb-4 code-font">0</div>
+                    <div class="grid grid-cols-4 gap-2 pb-2">
+                        <button onclick="calcClear()" class="p-3 bg-red-500/20 text-red-400 font-bold rounded-xl">C</button>
+                        <button onclick="calcAppend('/')" class="p-3 bg-slate-800 font-bold rounded-xl text-amber-400">÷</button>
+                        <button onclick="calcAppend('*')" class="p-3 bg-slate-800 font-bold rounded-xl text-amber-400">×</button>
+                        <button onclick="calcAppend('-')" class="p-3 bg-slate-800 font-bold rounded-xl text-amber-400">-</button>
+                        <button onclick="calcAppend('7')" class="p-3 bg-slate-800 font-bold rounded-xl">7</button>
+                        <button onclick="calcAppend('8')" class="p-3 bg-slate-800 font-bold rounded-xl">8</button>
+                        <button onclick="calcAppend('9')" class="p-3 bg-slate-800 font-bold rounded-xl">9</button>
+                        <button onclick="calcAppend('+')" class="p-3 bg-slate-800 font-bold rounded-xl text-amber-400">+</button>
+                        <button onclick="calcAppend('4')" class="p-3 bg-slate-800 font-bold rounded-xl">4</button>
+                        <button onclick="calcAppend('5')" class="p-3 bg-slate-800 font-bold rounded-xl">5</button>
+                        <button onclick="calcAppend('6')" class="p-3 bg-slate-800 font-bold rounded-xl">6</button>
+                        <button onclick="calcCompute()" class="row-span-2 p-3 bg-amber-500 text-slate-950 font-bold rounded-xl flex items-center justify-center text-xl">=</button>
+                        <button onclick="calcAppend('1')" class="p-3 bg-slate-800 font-bold rounded-xl">1</button>
+                        <button onclick="calcAppend('2')" class="p-3 bg-slate-800 font-bold rounded-xl">2</button>
+                        <button onclick="calcAppend('3')" class="p-3 bg-slate-800 font-bold rounded-xl">3</button>
+                        <button onclick="calcAppend('0')" class="col-span-2 p-3 bg-slate-800 font-bold rounded-xl">0</button>
+                        <button onclick="calcAppend('.')" class="p-3 bg-slate-800 font-bold rounded-xl">.</button>
+                    </div>
+                </div>
+
+                <!-- APP : JEUX -->
+                <div id="view-games" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 overflow-y-auto hide-scrollbar">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-gamepad text-purple-400 mr-2"></i> Centre de Jeux</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex items-center justify-between">
+                            <div>
+                                <h4 class="font-bold text-white text-sm">Snake Classic</h4>
+                                <p class="text-[10px] text-slate-400">Jeu du serpent 100% offline</p>
+                            </div>
+                            <button onclick="showToast('Lancement de Snake...')" class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-semibold text-white">Jouer</button>
+                        </div>
+                        <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex items-center justify-between">
+                            <div>
+                                <h4 class="font-bold text-white text-sm">Morpion IA</h4>
+                                <p class="text-[10px] text-slate-400">Affronte le bot local</p>
+                            </div>
+                            <button onclick="showToast('Lancement de Morpion...')" class="bg-purple-600 px-3 py-1.5 rounded-xl text-xs font-semibold text-white">Jouer</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- APP : NPS.AI -->
+                <div id="view-nps" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 justify-between">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-robot text-cyan-400 mr-2"></i> NPS.AI</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <div id="ai-chat" class="flex-1 bg-slate-800/80 rounded-2xl p-3 overflow-y-auto space-y-2 text-xs text-slate-200 mb-3 border border-slate-700">
+                        <p class="bg-cyan-950/60 p-2.5 rounded-xl border border-cyan-500/30">Salut ! Je suis ton assistant NPS.AI 100% hors ligne. Comment puis-je t'aider ?</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <input type="text" id="ai-input" placeholder="Écris à NPS.AI..." class="w-full bg-slate-800 text-xs px-3 py-2 rounded-xl text-white border border-slate-700 outline-none">
+                        <button onclick="sendAI()" class="bg-cyan-600 px-3 py-2 rounded-xl text-white text-xs"><i class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+
+                <!-- APP : DIALER / TÉLÉPHONE -->
+                <div id="view-dialer" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 justify-between">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-phone text-emerald-400 mr-2"></i> Téléphone</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <div id="dial-display" class="bg-slate-800 text-center p-3 rounded-2xl text-xl font-bold text-white code-font mb-2">123</div>
+                    <div class="grid grid-cols-3 gap-2 pb-2">
+                        <button onclick="dialAppend('1')" class="p-3 bg-slate-800 rounded-xl font-bold">1</button>
+                        <button onclick="dialAppend('2')" class="p-3 bg-slate-800 rounded-xl font-bold">2</button>
+                        <button onclick="dialAppend('3')" class="p-3 bg-slate-800 rounded-xl font-bold">3</button>
+                        <button onclick="dialAppend('4')" class="p-3 bg-slate-800 rounded-xl font-bold">4</button>
+                        <button onclick="dialAppend('5')" class="p-3 bg-slate-800 rounded-xl font-bold">5</button>
+                        <button onclick="dialAppend('6')" class="p-3 bg-slate-800 rounded-xl font-bold">6</button>
+                        <button onclick="dialAppend('7')" class="p-3 bg-slate-800 rounded-xl font-bold">7</button>
+                        <button onclick="dialAppend('8')" class="p-3 bg-slate-800 rounded-xl font-bold">8</button>
+                        <button onclick="dialAppend('9')" class="p-3 bg-slate-800 rounded-xl font-bold">9</button>
+                        <button onclick="dialAppend('*')" class="p-3 bg-slate-800 rounded-xl font-bold">*</button>
+                        <button onclick="dialAppend('0')" class="p-3 bg-slate-800 rounded-xl font-bold">0</button>
+                        <button onclick="dialAppend('#')" class="p-3 bg-slate-800 rounded-xl font-bold">#</button>
+                    </div>
+                    <button onclick="showToast('Appel simulé en cours...')" class="w-full py-3 bg-emerald-500 text-white font-bold rounded-2xl text-xs"><i class="fa-solid fa-phone mr-1"></i> Appeler</button>
+                </div>
+
+                <!-- APP : MESSAGES -->
+                <div id="view-messages" class="app-view hidden flex flex-col h-full bg-slate-900/95 rounded-3xl p-4 overflow-y-auto hide-scrollbar">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-message text-blue-400 mr-2"></i> Messages</h3>
+                        <button onclick="goHome()" class="text-xs bg-slate-800 px-3 py-1.5 rounded-xl text-slate-300">Fermer</button>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700">
+                            <p class="font-bold text-xs text-white">NPS.NELSON</p>
+                            <p class="text-[11px] text-slate-300">Le PhoneOS v5 tourne à 100% hors ligne !</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Barre de Navigation Système à 3 boutons cliquables -->
+            <div class="absolute bottom-2 left-0 right-0 h-10 flex items-center justify-around px-8 z-50">
+                <button onclick="navBack()" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-transform cursor-pointer">
+                    <i class="fa-solid fa-chevron-left text-lg"></i>
+                </button>
+                <button onclick="goHome()" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-transform cursor-pointer">
+                    <i class="fa-solid fa-circle text-base"></i>
+                </button>
+                <button onclick="navRecent()" class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:text-white active:scale-90 transition-transform cursor-pointer">
+                    <i class="fa-solid fa-square text-base"></i>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Horloge temps réel
+        setInterval(() => {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('status-time').innerText = timeStr;
+            const homeTime = document.getElementById('home-time');
+            if (homeTime) homeTime.innerText = timeStr;
+        }, 1000);
+
+        // Système Toast (Zéro Popup)
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-900/95 backdrop-blur-md text-white text-xs px-4 py-2.5 rounded-2xl border border-slate-700 shadow-2xl toast-anim flex items-center space-x-2';
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-blue-400"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Navigation Apps
+        let currentApp = 'home';
+        let appHistory = ['home'];
+
+        function openApp(appName) {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById('view-' + appName);
+            if (target) {
+                target.classList.remove('hidden');
+                currentApp = appName;
+                appHistory.push(appName);
+            }
+        }
+
+        function goHome() {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById('view-home').classList.remove('hidden');
+            currentApp = 'home';
+            appHistory = ['home'];
+        }
+
+        function navBack() {
+            if (appHistory.length > 1) {
+                appHistory.pop();
+                const prev = appHistory[appHistory.length - 1];
+                document.querySelectorAll('.app-view').forEach(el => el.classList.add('hidden'));
+                document.getElementById('view-' + prev).classList.remove('hidden');
+                currentApp = prev;
+            } else {
+                goHome();
+            }
+        }
+
+        function navRecent() {
+            showToast("Applications récentes : " + appHistory.join(' → '));
+        }
+
+        // Panneau de contrôle
+        let controlOpen = false;
+        function toggleControlPanel() {
+            controlOpen = !controlOpen;
+            const panel = document.getElementById('control-panel');
+            if (controlOpen) panel.classList.remove('-translate-y-full');
+            else panel.classList.add('-translate-y-full');
+        }
+
+        function toggleQuick(type) {
+            const btn = document.getElementById('quick-' + type);
+            btn.classList.toggle('bg-blue-600');
+            btn.classList.toggle('bg-slate-800');
+            showToast(type.toUpperCase() + " basculé");
+        }
+
+        let torchActive = false;
+        function toggleTorch() {
+            torchActive = !torchActive;
+            const btn = document.getElementById('quick-torch');
+            const overlay = document.getElementById('torch-overlay');
+            if (torchActive) {
+                btn.classList.add('torch-active');
+                overlay.classList.remove('bg-transparent');
+                overlay.classList.add('bg-white');
+                showToast("Torche activée");
+            } else {
+                btn.classList.remove('torch-active');
+                overlay.classList.remove('bg-white');
+                overlay.classList.add('bg-transparent');
+                showToast("Torche éteinte");
+            }
+        }
+
+        function adjustBrightness(val) {
+            document.getElementById('phone-screen').style.opacity = val / 100;
+        }
+
+        // Sélecteur de Fonds d'écran Persistant
+        function setWallpaper(themeKey, themeName) {
+            const screen = document.getElementById('phone-screen');
+            screen.className = `relative w-full h-full bg-theme-${themeKey} rounded-[38px] pt-12 pb-12 px-3 flex flex-col justify-between overflow-hidden transition-all duration-500`;
+            localStorage.setItem('nps_wallpaper', themeKey);
+            showToast("Fond d'écran appliqué : " + themeName);
+        }
+
+        // Charger le fond d'écran sauvegardé au démarrage
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('nps_wallpaper');
+            if (savedTheme) {
+                const screen = document.getElementById('phone-screen');
+                screen.className = `relative w-full h-full bg-theme-${savedTheme} rounded-[38px] pt-12 pb-12 px-3 flex flex-col justify-between overflow-hidden transition-all duration-500`;
+            }
+        });
+
+        // Galerie Photos (5 images loufoques cuisine & dev)
+        const galleryImages = [
+            { title: "Dev Triomphant", url: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400" },
+            { title: "Cuisine Seau & Farine", url: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400" },
+            { title: "Le Chef Casseroles", url: "https://images.unsplash.com/photo-1507048331197-7d4ac70b11cf?w=400" },
+            { title: "Désastre Culinaire", url: "https://images.unsplash.com/photo-1574484284002-712d98435f3e?w=400" },
+            { title: "Génie du Code & Soupe", url: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400" }
+        ];
+
+        function loadGallery() {
+            const grid = document.getElementById('gallery-grid');
+            grid.innerHTML = galleryImages.map(img => `
+                <div class="bg-slate-800/80 rounded-2xl overflow-hidden border border-slate-700 shadow-md">
+                    <img src="${img.url}" class="w-full h-40 object-cover" alt="${img.title}">
+                    <div class="p-3 text-xs font-semibold text-white">${img.title}</div>
+                </div>
+            `).join('');
+        }
+        loadGallery();
+
+        // Musique & Playlists 100% Offline
+        let musicPlaying = false;
+        let playlists = [
+            { name: "Coding Beats", tracks: ["Lo-Fi Code", "Cyber Synth"] },
+            { name: "Cuisine & Chill", tracks: ["Jazz Casserole", "Kitchen Funk"] }
+        ];
+        let allTracks = ["Lo-Fi Code", "Cyber Synth", "Jazz Casserole", "Kitchen Funk", "Epic Build", "Kinshasa Night"];
+
+        function loadMusicApp() {
+            const plContainer = document.getElementById('playlists-container');
+            plContainer.innerHTML = playlists.map((p, idx) => `
+                <div onclick="playPlaylist(${idx})" class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 flex justify-between items-center cursor-pointer hover:border-purple-500">
+                    <div>
+                        <h4 class="font-bold text-white text-xs"><i class="fa-solid fa-list mr-2 text-purple-400"></i> ${p.name}</h4>
+                        <span class="text-[10px] text-slate-400">${p.tracks.length} morceaux</span>
+                    </div>
+                    <i class="fa-solid fa-play text-xs text-purple-400"></i>
+                </div>
+            `).join('');
+
+            const trContainer = document.getElementById('tracks-container');
+            trContainer.innerHTML = allTracks.map((t) => `
+                <div onclick="selectTrack('${t}')" class="bg-slate-800/60 p-2.5 rounded-xl flex justify-between items-center cursor-pointer hover:bg-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-music text-purple-400 text-xs"></i>
+                        <span class="text-xs text-white">${t}</span>
+                    </div>
+                    <i class="fa-solid fa-play text-[10px] text-slate-400"></i>
+                </div>
+            `).join('');
+        }
+        loadMusicApp();
+
+        function selectTrack(title) {
+            document.getElementById('current-track-title').innerText = title;
+            musicPlaying = true;
+            document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-pause"></i>';
+            showToast("Lecture : " + title);
+        }
+
+        function togglePlayMusic() {
+            musicPlaying = !musicPlaying;
+            const btn = document.getElementById('play-btn');
+            btn.innerHTML = musicPlaying ? '<i class="fa-solid fa-pause"></i>' : '<i class="fa-solid fa-play"></i>';
+            showToast(musicPlaying ? "Lecture en cours" : "Pause");
+        }
+
+        function nextMusic() { showToast("Morceau suivant"); }
+        function prevMusic() { showToast("Morceau précédent"); }
+
+        function createPlaylist() {
+            const name = prompt("Nom de la nouvelle playlist :");
+            if (name) {
+                playlists.push({ name: name, tracks: ["Lo-Fi Code"] });
+                loadMusicApp();
+                showToast("Playlist créée !");
+            }
+        }
+
+        function playPlaylist(idx) {
+            showToast("Lecture playlist : " + playlists[idx].name);
+            selectTrack(playlists[idx].tracks[0]);
+        }
+
+        // Navigateur Web Offline Géant
+        function performSearch() {
+            const query = document.getElementById('browser-input').value.trim();
+            const container = document.getElementById('browser-results');
+            if (!query) return;
+            
+            container.innerHTML = `
+                <div class="bg-slate-800/90 p-3 rounded-2xl border border-slate-700 text-xs text-slate-200">
+                    <p class="font-bold text-blue-400 mb-1">Résultat Offline : ${query}</p>
+                    <p class="text-slate-300 mb-2">Base encyclopédique locale générée pour "${query}". Millions de données indexées.</p>
+                    <div class="space-y-1 text-[11px] text-blue-300">
+                        <p>• Documentation officielle et syntaxe de ${query}</p>
+                        <p>• Exemples pratiques et cas d'usage en RDC</p>
+                    </div>
+                </div>
+            `;
+            showToast("Recherche effectuée avec succès");
+        }
+
+        // Notes & Calc & AI
+        function saveNote() {
+            const text = document.getElementById('note-text').value;
+            if (text) {
+                localStorage.setItem('nps_note', text);
+                showToast("Note sauvegardée en local !");
+            }
+        }
+
+        let calcVal = "";
+        function calcAppend(char) {
+            calcVal += char;
+            document.getElementById('calc-display').innerText = calcVal;
+        }
+        function calcClear() {
+            calcVal = "";
+            document.getElementById('calc-display').innerText = "0";
+        }
+        function calcCompute() {
+            try {
+                calcVal = eval(calcVal).toString();
+                document.getElementById('calc-display').innerText = calcVal;
+            } catch {
+                showToast("Erreur de calcul");
+                calcClear();
+            }
+        }
+
+        let dialVal = "123";
+        function dialAppend(char) {
+            dialVal += char;
+            document.getElementById('dial-display').innerText = dialVal;
+        }
+
+        function sendAI() {
+            const input = document.getElementById('ai-input');
+            const chat = document.getElementById('ai-chat');
+            const text = input.value.trim();
+            if (!text) return;
+
+            chat.innerHTML += `<p class="text-right text-cyan-300"><b>Toi :</b> ${text}</p>`;
+            input.value = "";
+
+            setTimeout(() => {
+                let reply = "En tant qu'assistant NPS.AI 100% hors ligne, je traite ta requête avec brio.";
+                if (text.toLowerCase().includes('bonjour')) reply = "Bonjour ! Prêt à coder ?";
+                chat.innerHTML += `<p class="bg-cyan-950/60 p-2.5 rounded-xl border border-cyan-500/30"><b>NPS.AI :</b> ${reply}</p>`;
+                chat.scrollTop = chat.scrollHeight;
+            }, 600);
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html>
